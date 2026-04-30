@@ -1,29 +1,41 @@
 const BASE = '/api';
 
+// Reads the JWT from a cookie (mirrors AuthContext cookie helpers)
+function getTokenFromCookie(): string {
+  const entry = document.cookie
+    .split('; ')
+    .find(row => row.startsWith('ludo_token='));
+  return entry ? decodeURIComponent(entry.split('=')[1]) : '';
+}
+
+interface RequestBody {
+  [key: string]: unknown;
+}
+
 export async function apiFetch(path: string, options: RequestInit = {}) {
-  const token = localStorage.getItem('ludo_token');
+  const token = getTokenFromCookie();
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     ...(options.headers as Record<string, string> || {})
   };
   if (token) headers['Authorization'] = `Bearer ${token}`;
   const res = await fetch(`${BASE}${path}`, { ...options, headers });
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error(data.message || 'Request failed');
+  const data: unknown = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error((data as { message?: string }).message || 'Request failed');
   return data;
 }
 
 export const authApi = {
-  login: (body: any) => apiFetch('/auth/login', { method: 'POST', body: JSON.stringify(body) }),
-  signup: (body: any) => apiFetch('/auth/signup', { method: 'POST', body: JSON.stringify(body) }),
-  me: () => apiFetch('/auth/me')
+  login:  (body: RequestBody) => apiFetch('/auth/login',  { method: 'POST', body: JSON.stringify(body) }),
+  signup: (body: RequestBody) => apiFetch('/auth/signup', { method: 'POST', body: JSON.stringify(body) }),
+  me:     ()                  => apiFetch('/auth/me')
 };
 
 export const gameApi = {
   leaderboard: (params?: string) => apiFetch(`/game/leaderboard${params ? '?' + params : ''}`),
-  history: () => apiFetch('/game/history')
+  history:     ()                => apiFetch('/game/history')
 };
 
 export const profileApi = {
-  update: (body: any) => apiFetch('/profile/update', { method: 'PATCH', body: JSON.stringify(body) })
+  update: (body: RequestBody) => apiFetch('/profile/update', { method: 'PATCH', body: JSON.stringify(body) })
 };

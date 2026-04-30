@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { getSocket } from '../utils/socket';
+import { authApi } from '../utils/api';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface Token { id: number; steps: number; }
@@ -37,13 +38,6 @@ const HOME_COLS: Record<Color, [number,number][]> = {
   blue:   [[1,7],[2,7],[3,7],[4,7],[5,7]],
   yellow: [[7,13],[7,12],[7,11],[7,10],[7,9]],
   green:  [[13,7],[12,7],[11,7],[10,7],[9,7]]
-};
-// Yard slots [row, col] relative inside 4x4 yard (approximate visual centers)
-const YARD_SLOTS: Record<Color, [number,number][]> = {
-  red:    [[1,1],[1,3],[3,1],[3,3]],
-  blue:   [[1,9],[1,11],[3,9],[3,11]],
-  green:  [[11,1],[11,3],[13,1],[13,3]],
-  yellow: [[11,9],[11,11],[13,9],[13,11]]
 };
 
 function getAbsSquare(steps: number, color: Color) {
@@ -309,17 +303,19 @@ export default function Game() {
   const { gameId } = useParams<{ gameId: string }>();
   const navigate = useNavigate();
   const location = useLocation();
-  const { user } = useAuth();
+  const { user, updateUser } = useAuth();
   const socket = getSocket();
 
-  const [gameState, setGameState] = useState<GameState | null>((location.state as any)?.gameState || null);
+  const locationState = location.state as { gameState?: GameState } | null;
+  const [gameState, setGameState] = useState<GameState | null>(locationState?.gameState ?? null);
   const [chatMessages, setChatMessages] = useState<ChatMsg[]>([]);
   const [chatInput, setChatInput] = useState('');
   const [diceHistory, setDiceHistory] = useState<number[]>([]);
   const [selectedToken, setSelectedToken] = useState<{ color: Color; index: number } | null>(null);
   const [timer, setTimer] = useState(20);
   const [showVictory, setShowVictory] = useState(false);
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  // const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const chatRef = useRef<HTMLDivElement>(null);
 
   const myColor = gameState?.players.find(p => p.userId === user?._id)?.color as Color | null;
@@ -368,9 +364,13 @@ export default function Game() {
     socket.on('gameOver', ({ gameState: gs }: { gameState: GameState }) => {
       setGameState(gs);
       setShowVictory(true);
+      // Refresh user profile so Navbar shows updated coin balance
+      authApi.me().then((data) => updateUser((data as { user: Parameters<typeof updateUser>[0] }).user)).catch(console.error);
     });
 
     socket.on('chatMessage', (msg: ChatMsg) => {
+      // Skip own messages — already added locally in handleSendMessage
+      if (msg.userId === user?._id) return;
       setChatMessages(prev => [...prev, msg]);
       setTimeout(() => { if (chatRef.current) chatRef.current.scrollTop = chatRef.current.scrollHeight; }, 50);
     });

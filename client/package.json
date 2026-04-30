@@ -1,0 +1,11 @@
+{
+  "name": "ludo-client-root",
+  "version": "1.0.0",
+  "description": "Root shim — delegates to client/APP where the React app lives",
+  "scripts": {
+    "postinstall": "cd APP && npm install",
+    "dev": "cd APP && npm run dev",
+    "build": "cd APP && npm run build",
+    "preview": "cd APP && npm run preview"
+  }
+}

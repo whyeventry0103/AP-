@@ -21,7 +21,7 @@ export default function Lobby() {
       setPlayers(p);
     });
 
-    socket.on('gameStarted', ({ gameState }: any) => {
+    socket.on('gameStarted', ({ gameState }: { gameState: { gameId: string } }) => {
       navigate(`/newgame/${gameState.gameId}`, { state: { gameState } });
     });
 

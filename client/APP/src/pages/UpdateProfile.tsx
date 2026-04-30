@@ -1,4 +1,5 @@
-import { useState, FormEvent } from 'react';
+import { useState } from 'react';
+import type { FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Navbar from '../components/Navbar';
 import { useAuth } from '../context/AuthContext';
@@ -25,14 +26,14 @@ export default function UpdateProfile() {
     }
     setLoading(true);
     try {
-      const body: any = { dob };
+      const body: { dob: string; currentPassword?: string; newPassword?: string } = { dob };
       if (newPassword) { body.currentPassword = currentPassword; body.newPassword = newPassword; }
       const data = await profileApi.update(body);
-      updateUser(data.user);
+      updateUser((data as { user: Parameters<typeof updateUser>[0] }).user);
       setSuccess('Profile updated successfully!');
       setCurrentPassword(''); setNewPassword(''); setConfirmNew('');
-    } catch (err: any) {
-      setError(err.message || 'Update failed');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Update failed');
     } finally {
       setLoading(false);
     }

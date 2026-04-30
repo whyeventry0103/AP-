@@ -1,7 +1,6 @@
 import { Response } from 'express';
 import { AuthRequest } from '../middleware/auth';
 import { User } from '../models/User';
-import bcrypt from 'bcryptjs';
 
 export const updateProfile = async (req: AuthRequest, res: Response) => {
   try {
@@ -32,7 +31,8 @@ export const updateProfile = async (req: AuthRequest, res: Response) => {
         createdAt: user.createdAt
       }
     });
-  } catch (err: any) {
-    res.status(500).json({ message: 'Server error', error: err.message });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Server error';
+    res.status(500).json({ message: 'Server error', error: message });
   }
 };

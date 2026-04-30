@@ -229,7 +229,11 @@ export function initGameState(gameId: string, players: { userId: string; usernam
   };
 }
 
-export function getCoinReward(rank: number): number {
-  const rewards: Record<number, number> = { 1: 100, 2: 50, 3: 25, 4: 0 };
-  return rewards[rank] ?? 0;
+export function getCoinReward(rank: number, totalPlayers: number): number {
+  const rewardTable: Record<number, Record<number, number>> = {
+    4: { 1: 100, 2: 50, 3: 25, 4: 0 },
+    3: { 1: 50,  2: 25, 3: 0 },
+    2: { 1: 25,  2: 0 },
+  };
+  return rewardTable[totalPlayers]?.[rank] ?? 0;
 }

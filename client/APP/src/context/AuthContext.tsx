@@ -1,4 +1,5 @@
-import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect } from 'react';
+import type { ReactNode } from 'react';
 
 interface User {
   _id: string;
@@ -18,6 +19,25 @@ interface AuthContextType {
   isLoading: boolean;
 }
 
+// ── Cookie helpers (no extra package required) ────────────────────────────────
+const COOKIE_MAX_AGE = 60 * 60 * 24 * 7; // 7 days in seconds
+
+function setCookie(name: string, value: string): void {
+  document.cookie = `${name}=${encodeURIComponent(value)}; path=/; max-age=${COOKIE_MAX_AGE}; SameSite=Lax`;
+}
+
+function getCookie(name: string): string | null {
+  const entry = document.cookie
+    .split('; ')
+    .find(row => row.startsWith(`${name}=`));
+  return entry ? decodeURIComponent(entry.split('=')[1]) : null;
+}
+
+function removeCookie(name: string): void {
+  document.cookie = `${name}=; path=/; max-age=0; SameSite=Lax`;
+}
+// ─────────────────────────────────────────────────────────────────────────────
+
 const AuthContext = createContext<AuthContextType>({
   user: null, token: null,
   login: () => {}, logout: () => {}, updateUser: () => {},
@@ -29,35 +49,40 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
+  // Restore session from cookies on initial load
   useEffect(() => {
-    const savedToken = localStorage.getItem('ludo_token');
-    const savedUser = localStorage.getItem('ludo_user');
+    const savedToken = getCookie('ludo_token');
+    const savedUser  = getCookie('ludo_user');
     if (savedToken && savedUser) {
       try {
         setToken(savedToken);
         setUser(JSON.parse(savedUser));
-      } catch {}
+      } catch {
+        // Corrupted cookie — clear it
+        removeCookie('ludo_token');
+        removeCookie('ludo_user');
+      }
     }
     setIsLoading(false);
   }, []);
 
-  const login = (tk: string, u: User) => {
+  const login = (tk: string, u: User): void => {
     setToken(tk);
     setUser(u);
-    localStorage.setItem('ludo_token', tk);
-    localStorage.setItem('ludo_user', JSON.stringify(u));
+    setCookie('ludo_token', tk);
+    setCookie('ludo_user', JSON.stringify(u));
   };
 
-  const logout = () => {
+  const logout = (): void => {
     setToken(null);
     setUser(null);
-    localStorage.removeItem('ludo_token');
-    localStorage.removeItem('ludo_user');
+    removeCookie('ludo_token');
+    removeCookie('ludo_user');
   };
 
-  const updateUser = (u: User) => {
+  const updateUser = (u: User): void => {
     setUser(u);
-    localStorage.setItem('ludo_user', JSON.stringify(u));
+    setCookie('ludo_user', JSON.stringify(u));
   };
 
   return (

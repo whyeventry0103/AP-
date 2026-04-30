@@ -1,7 +1,12 @@
 import { Server, Socket } from 'socket.io';
-import jwt from 'jsonwebtoken';
+import jwt, { JwtPayload } from 'jsonwebtoken';
 import { Game } from '../models/Game';
 import { User } from '../models/User';
+
+// Augment Socket with the userId attached by the auth middleware
+interface AuthenticatedSocket extends Socket {
+  userId: string;
+}
 import {
   GameState, Player, Color, COLORS,
   initGameState, rollDice, getValidTokenIndices,
@@ -32,9 +37,10 @@ async function finishGame(io: Server, state: GameState) {
     game.status = 'finished';
     game.finishedAt = new Date();
 
+    const totalPlayers = state.players.length;
     for (const p of state.players) {
       const rank = p.rank ?? state.players.length;
-      const coins = getCoinReward(rank);
+      const coins = getCoinReward(rank, totalPlayers);
       const gp = game.players.find(gpp => gpp.userId.toString() === p.userId);
       if (gp) { gp.rank = rank; gp.coinsEarned = coins; }
 
@@ -98,13 +104,13 @@ function startTurnTimer(io: Server, gameId: string) {
 }
 
 export function setupSocket(io: Server) {
-  // Auth middleware for socket
+  // Auth middleware for socket — verifies JWT and attaches userId
   io.use((socket, next) => {
-    const token = socket.handshake.auth?.token;
+    const token = socket.handshake.auth?.token as string | undefined;
     if (!token) return next(new Error('No token'));
     try {
-      const decoded: any = jwt.verify(token, process.env.JWT_SECRET || 'secret');
-      (socket as any).userId = decoded.id;
+      const decoded = jwt.verify(token, process.env.JWT_SECRET || 'secret') as JwtPayload;
+      (socket as AuthenticatedSocket).userId = decoded.id as string;
       next();
     } catch {
       next(new Error('Invalid token'));
@@ -112,8 +118,7 @@ export function setupSocket(io: Server) {
   });
 
   io.on('connection', async (socket: Socket) => {
-    const userId = (socket as any).userId;
-    console.log(`[Socket] Connected: ${socket.id} userId=${userId}`);
+    const { userId } = socket as AuthenticatedSocket;
 
     // ── LOBBY ──────────────────────────────────────────────
     socket.on('joinLobby', async () => {

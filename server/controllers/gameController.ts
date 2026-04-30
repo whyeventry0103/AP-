@@ -2,7 +2,6 @@ import { Response } from 'express';
 import { AuthRequest } from '../middleware/auth';
 import { Game } from '../models/Game';
 import { User } from '../models/User';
-import mongoose from 'mongoose';
 
 export const getLeaderboard = async (req: AuthRequest, res: Response) => {
   try {
@@ -25,7 +24,7 @@ export const getLeaderboard = async (req: AuthRequest, res: Response) => {
       page,
       pages: Math.ceil(total / limit)
     });
-  } catch (err: any) {
+  } catch {
     res.status(500).json({ message: 'Server error' });
   }
 };
@@ -46,14 +45,17 @@ export const getHistory = async (req: AuthRequest, res: Response) => {
         gameId: game._id,
         date: game.finishedAt || game.createdAt,
         total_players: game.total_players,
-        players: game.players.map(p => ({ username: p.username, color: p.color, rank: p.rank })),
+        players: game.players
+          .slice()
+          .sort((a, b) => (a.rank ?? 99) - (b.rank ?? 99))
+          .map(p => ({ username: p.username, color: p.color, rank: p.rank })),
         myRank: myPlayer?.rank,
         coinsEarned: myPlayer?.coinsEarned ?? 0
       };
     });
 
     res.json({ history });
-  } catch (err: any) {
+  } catch {
     res.status(500).json({ message: 'Server error' });
   }
 };
