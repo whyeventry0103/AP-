@@ -8,6 +8,7 @@ interface HistoryItem {
   date: string;
   total_players: number;
   players: { username: string; color: string; rank: number | null }[];
+  finishingOrder?: string[];
   myRank: number | null;
   coinsEarned: number;
 }
@@ -54,6 +55,16 @@ export default function History() {
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0', borderBottom: '1px solid #e0d5c8', fontSize: 14 }}>
                     <span style={{ color: '#666', fontWeight: 600, textTransform: 'uppercase', fontSize: 12, letterSpacing: '.5px' }}>Players:</span>
                     <span style={{ color: '#1a1a1a', fontWeight: 600 }}>{item.players.map(p => `${p.username} (${p.color})`).join(', ')}</span>
+                  </div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0', borderBottom: '1px solid #e0d5c8', fontSize: 14 }}>
+                    <span style={{ color: '#666', fontWeight: 600, textTransform: 'uppercase', fontSize: 12, letterSpacing: '.5px' }}>Finishing Order:</span>
+                    <span style={{ color: '#1a1a1a', fontWeight: 700 }}>
+                      {(item.finishingOrder && item.finishingOrder.length > 0 ? item.finishingOrder : item.players
+                        .slice()
+                        .sort((a, b) => (a.rank ?? 99) - (b.rank ?? 99))
+                        .map(p => p.username)
+                      ).join(' → ')}
+                    </span>
                   </div>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '10px 0', borderBottom: '1px solid #e0d5c8', fontSize: 14 }}>
                     <span style={{ color: '#666', fontWeight: 600, textTransform: 'uppercase', fontSize: 12, letterSpacing: '.5px' }}>Finish Position:</span>

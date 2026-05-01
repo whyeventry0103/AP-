@@ -208,6 +208,20 @@ export function setupSocket(io: Server) {
       socket.emit('gameStateUpdate', { gameState: state });
     });
 
+    socket.on('leaveGame', ({ gameId }: { gameId: string }) => {
+      const state = activeGames.get(gameId);
+      if (state) {
+        const p = state.players.find(pl => pl.userId === userId);
+        if (p) {
+          p.isConnected = false;
+          p.isAI = true;
+          io.to(gameId).emit('gameStateUpdate', { gameState: state });
+        }
+      }
+      socket.leave(gameId);
+      if (joinedGameId === gameId) joinedGameId = null;
+    });
+
     socket.on('rollDice', ({ gameId }: { gameId: string }) => {
       const state = activeGames.get(gameId);
       if (!state || state.status !== 'playing') return;
