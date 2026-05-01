@@ -97,14 +97,14 @@ function startTurnTimer(io: Server, gameId: string) {
           await persistActiveGame(gameId, result.newState);
           io.to(gameId).emit('gameStateUpdate', { gameState: result.newState });
           if (result.newState.status === 'finished') {
-            finishGame(io, result.newState);
+            await finishGame(io, result.newState);
           } else {
             startTurnTimer(io, gameId);
           }
         }
       }, 1000);
     } else {
-      // Dice rolled but no move - auto-move
+      // Dice already rolled but no move made — auto-move
       const s = activeGames.get(gameId);
       if (!s) return;
       const result = autoMove(s);
@@ -113,7 +113,7 @@ function startTurnTimer(io: Server, gameId: string) {
         await persistActiveGame(gameId, result.newState);
         io.to(gameId).emit('gameStateUpdate', { gameState: result.newState });
         if (result.newState.status === 'finished') {
-          finishGame(io, result.newState);
+          await finishGame(io, result.newState);
         } else {
           startTurnTimer(io, gameId);
         }
@@ -233,6 +233,11 @@ export function setupSocket(io: Server) {
       const player = state.players.find(p => p.userId === userId);
       if (player) { player.isConnected = true; player.isAI = false; }
       socket.emit('gameStateUpdate', { gameState: state });
+      // Re-arm the turn timer if the game is active and no timer is running
+      // (covers server-restart scenario where turnTimers map is empty)
+      if (state.status === 'playing' && !turnTimers.has(gameId)) {
+        startTurnTimer(io, gameId);
+      }
     });
 
     socket.on('leaveGame', ({ gameId }: { gameId: string }) => {
@@ -279,7 +284,7 @@ export function setupSocket(io: Server) {
             await persistActiveGame(gameId, result.newState);
             io.to(gameId).emit('gameStateUpdate', { gameState: result.newState });
             if (result.newState.status === 'finished') {
-              finishGame(io, result.newState);
+              await finishGame(io, result.newState);
             } else {
               startTurnTimer(io, gameId);
             }
@@ -309,7 +314,7 @@ export function setupSocket(io: Server) {
       io.to(gameId).emit('gameStateUpdate', { gameState: newState });
 
       if (newState.status === 'finished') {
-        finishGame(io, newState);
+        await finishGame(io, newState);
       } else {
         startTurnTimer(io, gameId);
       }

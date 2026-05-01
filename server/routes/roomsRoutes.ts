@@ -1,9 +1,10 @@
 import { Router } from 'express';
-import { createRoom, getRoom, joinRoom, leaveRoom } from '../controllers/roomsController';
+import { listRooms, createRoom, getRoom, joinRoom, leaveRoom } from '../controllers/roomsController';
 import { protect } from '../middleware/auth';
 
 const router = Router();
 
+router.get('/', protect, listRooms);
 router.post('/', protect, createRoom);
 router.get('/:roomId', protect, getRoom);
 router.post('/:roomId/join', protect, joinRoom);

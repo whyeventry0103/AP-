@@ -4,6 +4,25 @@ import { Game } from '../models/Game';
 
 const ROOM_COLORS: ReadonlyArray<'red' | 'blue' | 'green' | 'yellow'> = ['red', 'blue', 'green', 'yellow'];
 
+export const listRooms = async (_req: AuthRequest, res: Response) => {
+  try {
+    const rooms = await Game.find({ status: 'waiting' })
+      .select('_id players total_players status createdAt')
+      .sort({ createdAt: -1 })
+      .limit(20);
+    res.json({
+      rooms: rooms.map(r => ({
+        roomId: r._id,
+        players: r.players.map(p => ({ username: p.username, color: p.color })),
+        total_players: r.players.length,
+        status: r.status
+      }))
+    });
+  } catch {
+    res.status(500).json({ message: 'Server error' });
+  }
+};
+
 export const createRoom = async (req: AuthRequest, res: Response) => {
   try {
     const user = req.user!;
