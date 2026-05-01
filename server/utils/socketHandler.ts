@@ -60,6 +60,11 @@ function startTurnTimer(io: Server, gameId: string) {
   const timer = setTimeout(() => {
     const state = activeGames.get(gameId);
     if (!state || state.status !== 'playing') return;
+
+    // If current player is disconnected, AI should take over.
+    const currentPlayer = state.players[state.currentPlayerIndex];
+    if (!currentPlayer.isConnected) currentPlayer.isAI = true;
+
     if (!state.diceRolled) {
       // Auto-roll
       const diceVal = rollDice();
@@ -117,6 +122,9 @@ export function setupSocket(io: Server) {
 
   io.on('connection', async (socket: Socket) => {
     const { userId } = socket as AuthenticatedSocket;
+
+    // Track which active game this socket belongs to (for targeted disconnect handling).
+    let joinedGameId: string | null = null;
 
     // ── LOBBY ──────────────────────────────────────────────
     socket.on('joinLobby', async () => {
@@ -194,6 +202,7 @@ export function setupSocket(io: Server) {
       const state = activeGames.get(gameId);
       if (!state) return socket.emit('error', { message: 'Game not found' });
       socket.join(gameId);
+      joinedGameId = gameId;
       const player = state.players.find(p => p.userId === userId);
       if (player) { player.isConnected = true; player.isAI = false; }
       socket.emit('gameStateUpdate', { gameState: state });
@@ -202,6 +211,7 @@ export function setupSocket(io: Server) {
     socket.on('rollDice', ({ gameId }: { gameId: string }) => {
       const state = activeGames.get(gameId);
       if (!state || state.status !== 'playing') return;
+      joinedGameId = gameId;
       const player = state.players[state.currentPlayerIndex];
       if (player.userId !== userId) return socket.emit('error', { message: 'Not your turn' });
       if (state.diceRolled) return socket.emit('error', { message: 'Already rolled' });
@@ -240,6 +250,7 @@ export function setupSocket(io: Server) {
     socket.on('moveToken', ({ gameId, tokenIndex }: { gameId: string; tokenIndex: number }) => {
       const state = activeGames.get(gameId);
       if (!state || state.status !== 'playing') return;
+      joinedGameId = gameId;
       const player = state.players[state.currentPlayerIndex];
       if (player.userId !== userId) return socket.emit('error', { message: 'Not your turn' });
       if (!state.diceRolled || state.diceValue === null) return socket.emit('error', { message: 'Roll dice first' });
@@ -263,6 +274,7 @@ export function setupSocket(io: Server) {
     // ── CHAT ───────────────────────────────────────────────
     socket.on('sendMessage', async ({ gameId, message }: { gameId: string; message: string }) => {
       if (!message || !message.trim()) return;
+      joinedGameId = gameId;
       const user = await User.findById(userId).select('username');
       if (!user) return;
       const state = activeGames.get(gameId);
@@ -286,14 +298,17 @@ export function setupSocket(io: Server) {
         lobbyPlayers.splice(lobbyIdx, 1);
         io.to('lobby').emit('lobbyUpdate', { players: lobbyPlayers });
       }
-      // Mark AI in active games
-      for (const [gameId, state] of activeGames) {
+      // Mark AI in active game (targeted if we know it, otherwise scan all).
+      const gameIdsToCheck = joinedGameId ? [joinedGameId] : [...activeGames.keys()];
+      for (const gameId of gameIdsToCheck) {
+        const state = activeGames.get(gameId);
+        if (!state) continue;
         const p = state.players.find(pl => pl.userId === userId);
-        if (p) {
-          p.isConnected = false;
-          p.isAI = true;
-          io.to(gameId).emit('gameStateUpdate', { gameState: state });
-        }
+        if (!p) continue;
+
+        p.isConnected = false;
+        p.isAI = true;
+        io.to(gameId).emit('gameStateUpdate', { gameState: state });
       }
     });
   });
