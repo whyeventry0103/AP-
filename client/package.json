@@ -1,11 +1,25 @@
 {
-  "name": "ludo-client-root",
-  "version": "1.0.0",
-  "description": "Root shim — delegates to client/APP where the React app lives",
+  "name": "ludo-game",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
   "scripts": {
-    "postinstall": "cd APP && npm install",
-    "dev": "cd APP && npm run dev",
-    "build": "cd APP && npm run build",
-    "preview": "cd APP && npm run preview"
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "lint": "eslint .",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-router-dom": "^6.30.3",
+    "socket.io-client": "^4.7.5"
+  },
+  "devDependencies": {
+    "@types/react": "^18.2.0",
+    "@types/react-dom": "^18.2.0",
+    "@vitejs/plugin-react": "^4.2.0",
+    "typescript": "~5.3.3",
+    "vite": "^5.1.0"
   }
 }

@@ -20,7 +20,8 @@ export async function apiFetch(path: string, options: RequestInit = {}) {
   };
   if (token) headers['Authorization'] = `Bearer ${token}`;
   const res = await fetch(`${BASE}${path}`, { ...options, headers });
-  const data: unknown = await res.json().catch(() => ({}));
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const data: any = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error((data as { message?: string }).message || 'Request failed');
   return data;
 }

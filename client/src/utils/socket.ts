@@ -10,7 +10,8 @@ function getTokenFromCookie(): string {
 }
 
 export function getSocket(): Socket {
-  if (!socket || !socket.connected) {
+  // Only create a new socket if none exists — never replace a reconnecting socket
+  if (!socket) {
     socket = io('http://localhost:8000', {
       auth: { token: getTokenFromCookie() },
       autoConnect: true,
@@ -27,20 +28,4 @@ export function disconnectSocket(): void {
     socket.disconnect();
     socket = null;
   }
-}
-
-export function resetSocket(): Socket | null {
-  if (socket) {
-    socket.disconnect();
-    socket = null;
-  }
-  const token = getTokenFromCookie();
-  if (token) {
-    socket = io('http://localhost:8000', {
-      auth: { token },
-      autoConnect: true,
-      reconnection: true
-    });
-  }
-  return socket;
 }

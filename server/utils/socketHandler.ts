@@ -2,23 +2,21 @@ import { Server, Socket } from 'socket.io';
 import jwt, { JwtPayload } from 'jsonwebtoken';
 import { Game } from '../models/Game';
 import { User } from '../models/User';
+import {
+  GameState, Color, COLORS,
+  initGameState, rollDice, getValidTokenIndices,
+  applyMove, autoMove, getCoinReward
+} from './ludoEngine';
 
-// Augment Socket with the userId attached by the auth middleware
+// Socket augmented with userId set by the auth middleware
 interface AuthenticatedSocket extends Socket {
   userId: string;
 }
-import {
-  GameState, Player, Color, COLORS,
-  initGameState, rollDice, getValidTokenIndices,
-  applyMove, autoMove, getNextPlayerIndex, getCoinReward
-} from './ludoEngine';
 
 // In-memory state
 const activeGames = new Map<string, GameState>();
 const lobbyPlayers: { socketId: string; userId: string; username: string }[] = [];
 const turnTimers = new Map<string, NodeJS.Timeout>();
-
-const COLORS_ASSIGN: Color[] = ['red', 'blue', 'green', 'yellow'];
 const TURN_TIMEOUT_MS = 20000;
 
 function clearTurnTimer(gameId: string) {
@@ -158,7 +156,7 @@ export function setupSocket(io: Server) {
           players: gamePlayers.map((p, i) => ({
             userId: p.userId,
             username: p.username,
-            color: COLORS_ASSIGN[i],
+            color: COLORS[i],
             rank: null,
             coinsEarned: 0
           })),
@@ -171,7 +169,7 @@ export function setupSocket(io: Server) {
         const state = initGameState(gameId, gamePlayers.map((p, i) => ({
           userId: p.userId,
           username: p.username,
-          color: COLORS_ASSIGN[i]
+          color: COLORS[i]
         })));
 
         activeGames.set(gameId, state);
@@ -282,7 +280,6 @@ export function setupSocket(io: Server) {
 
     // ── DISCONNECT ─────────────────────────────────────────
     socket.on('disconnect', () => {
-      console.log(`[Socket] Disconnected: ${socket.id}`);
       // Remove from lobby
       const lobbyIdx = lobbyPlayers.findIndex(p => p.userId === userId);
       if (lobbyIdx !== -1) {
