@@ -3,6 +3,8 @@ import cors from 'cors';
 import authRoutes from './routes/authRoutes';
 import gameRoutes from './routes/gameRoutes';
 import profileRoutes from './routes/profileRoutes';
+import statsRoutes from './routes/statsRoutes';
+import roomsRoutes from './routes/roomsRoutes';
 
 export const app = express();
 
@@ -13,6 +15,8 @@ app.use(express.urlencoded({ extended: true }));
 app.use('/api/auth', authRoutes);
 app.use('/api/game', gameRoutes);
 app.use('/api/profile', profileRoutes);
+app.use('/api/stats', statsRoutes);
+app.use('/api/rooms', roomsRoutes);
 
 app.get('/api/health', (_, res) => res.json({ status: 'ok' }));
 

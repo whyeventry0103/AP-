@@ -1,10 +1,9 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { getSocket } from '../utils/socket';
 
 interface LobbyPlayer { socketId: string; userId: string; username: string; }
-const COLORS = ['red', 'blue', 'green', 'yellow'];
 const COLOR_CLASSES = ['red', 'blue', 'green', 'yellow'] as const;
 
 export default function Lobby() {

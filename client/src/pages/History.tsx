@@ -45,7 +45,7 @@ export default function History() {
           <div style={{ textAlign: 'center', color: '#ccc', padding: 40, background: '#f5f0e8', borderRadius: 12 }}>No games played yet. <button onClick={() => navigate('/newgame/lobby')} style={{ background: 'none', border: 'none', color: '#f9a825', cursor: 'pointer', fontWeight: 700 }}>Play now!</button></div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-            {history.map((item, idx) => (
+            {history.map((item) => (
               <div key={item.gameId} style={{ background: 'linear-gradient(135deg,#f5f0e8 0%,#faf7f2 100%)', border: '2px solid #a08060', borderRadius: 10, overflow: 'hidden', boxShadow: '0 2px 8px rgba(0,0,0,.08)' }}>
                 <div style={{ background: '#4e342e', color: '#ffe0b2', padding: '12px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 12 }}>
                   <span style={{ fontWeight: 700, fontSize: 14 }}>Game #{String(item.gameId).slice(-6).toUpperCase()}</span>

@@ -2,6 +2,7 @@ import { Server, Socket } from 'socket.io';
 import jwt, { JwtPayload } from 'jsonwebtoken';
 import { Game } from '../models/Game';
 import { User } from '../models/User';
+import { ActiveGame } from '../models/ActiveGame';
 import {
   GameState, Color, COLORS,
   initGameState, rollDice, getValidTokenIndices,
@@ -18,6 +19,18 @@ const activeGames = new Map<string, GameState>();
 const lobbyPlayers: { socketId: string; userId: string; username: string }[] = [];
 const turnTimers = new Map<string, NodeJS.Timeout>();
 const TURN_TIMEOUT_MS = 20000;
+
+async function persistActiveGame(gameId: string, state: GameState): Promise<void> {
+  try {
+    await ActiveGame.findOneAndUpdate(
+      { gameId },
+      { state },
+      { upsert: true, new: true }
+    );
+  } catch (e) {
+    console.error('persistActiveGame error:', e);
+  }
+}
 
 function clearTurnTimer(gameId: string) {
   const t = turnTimers.get(gameId);
@@ -47,6 +60,7 @@ async function finishGame(io: Server, state: GameState) {
       });
     }
     await game.save();
+    await ActiveGame.deleteOne({ gameId: state.gameId });
   } catch (e) {
     console.error('Error saving game result:', e);
   }
@@ -57,7 +71,7 @@ async function finishGame(io: Server, state: GameState) {
 
 function startTurnTimer(io: Server, gameId: string) {
   clearTurnTimer(gameId);
-  const timer = setTimeout(() => {
+  const timer = setTimeout(async () => {
     const state = activeGames.get(gameId);
     if (!state || state.status !== 'playing') return;
 
@@ -71,14 +85,16 @@ function startTurnTimer(io: Server, gameId: string) {
       state.diceValue = diceVal;
       state.diceRolled = true;
       activeGames.set(gameId, state);
+      await persistActiveGame(gameId, state);
       io.to(gameId).emit('diceRolled', { gameState: state });
       // Then auto-move
-      setTimeout(() => {
+      setTimeout(async () => {
         const s2 = activeGames.get(gameId);
         if (!s2 || s2.status !== 'playing') return;
         const result = autoMove(s2);
         if (result) {
           activeGames.set(gameId, result.newState);
+          await persistActiveGame(gameId, result.newState);
           io.to(gameId).emit('gameStateUpdate', { gameState: result.newState });
           if (result.newState.status === 'finished') {
             finishGame(io, result.newState);
@@ -94,6 +110,7 @@ function startTurnTimer(io: Server, gameId: string) {
       const result = autoMove(s);
       if (result) {
         activeGames.set(gameId, result.newState);
+        await persistActiveGame(gameId, result.newState);
         io.to(gameId).emit('gameStateUpdate', { gameState: result.newState });
         if (result.newState.status === 'finished') {
           finishGame(io, result.newState);
@@ -181,6 +198,7 @@ export function setupSocket(io: Server) {
         })));
 
         activeGames.set(gameId, state);
+        await persistActiveGame(gameId, state);
 
         // Move all lobby players to game room
         for (const p of gamePlayers) {
@@ -198,8 +216,17 @@ export function setupSocket(io: Server) {
     });
 
     // ── GAME ───────────────────────────────────────────────
-    socket.on('rejoinGame', ({ gameId }: { gameId: string }) => {
-      const state = activeGames.get(gameId);
+    socket.on('rejoinGame', async ({ gameId }: { gameId: string }) => {
+      let state = activeGames.get(gameId);
+      if (!state) {
+        try {
+          const doc = await ActiveGame.findOne({ gameId });
+          if (doc) {
+            state = doc.state as unknown as GameState;
+            activeGames.set(gameId, state);
+          }
+        } catch (e) { console.error('rejoinGame restore error:', e); }
+      }
       if (!state) return socket.emit('error', { message: 'Game not found' });
       socket.join(gameId);
       joinedGameId = gameId;
@@ -222,7 +249,7 @@ export function setupSocket(io: Server) {
       if (joinedGameId === gameId) joinedGameId = null;
     });
 
-    socket.on('rollDice', ({ gameId }: { gameId: string }) => {
+    socket.on('rollDice', async ({ gameId }: { gameId: string }) => {
       const state = activeGames.get(gameId);
       if (!state || state.status !== 'playing') return;
       joinedGameId = gameId;
@@ -235,6 +262,7 @@ export function setupSocket(io: Server) {
       state.diceValue = diceVal;
       state.diceRolled = true;
       activeGames.set(gameId, state);
+      await persistActiveGame(gameId, state);
 
       io.to(gameId).emit('diceRolled', { gameState: state });
 
@@ -242,12 +270,13 @@ export function setupSocket(io: Server) {
       const validIndices = getValidTokenIndices(player, diceVal);
       if (validIndices.length === 0) {
         // Auto-advance turn after short delay
-        setTimeout(() => {
+        setTimeout(async () => {
           const s = activeGames.get(gameId);
           if (!s) return;
           const result = autoMove(s);
           if (result) {
             activeGames.set(gameId, result.newState);
+            await persistActiveGame(gameId, result.newState);
             io.to(gameId).emit('gameStateUpdate', { gameState: result.newState });
             if (result.newState.status === 'finished') {
               finishGame(io, result.newState);
@@ -261,7 +290,7 @@ export function setupSocket(io: Server) {
       }
     });
 
-    socket.on('moveToken', ({ gameId, tokenIndex }: { gameId: string; tokenIndex: number }) => {
+    socket.on('moveToken', async ({ gameId, tokenIndex }: { gameId: string; tokenIndex: number }) => {
       const state = activeGames.get(gameId);
       if (!state || state.status !== 'playing') return;
       joinedGameId = gameId;
@@ -275,6 +304,7 @@ export function setupSocket(io: Server) {
       clearTurnTimer(gameId);
       const newState = applyMove(state, tokenIndex);
       activeGames.set(gameId, newState);
+      await persistActiveGame(gameId, newState);
 
       io.to(gameId).emit('gameStateUpdate', { gameState: newState });
 
