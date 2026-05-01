@@ -359,6 +359,10 @@ export default function Game() {
       socket.emit('rejoinGame', { gameId });
     }
 
+    // Re-emit rejoinGame whenever the socket reconnects (covers server-restart scenario)
+    const handleConnect = () => { if (gameId) socket.emit('rejoinGame', { gameId }); };
+    socket.on('connect', handleConnect);
+
     socket.on('gameStateUpdate', ({ gameState: gs }: { gameState: GameState }) => {
       setGameState(gs);
       setSelectedToken(null);
@@ -387,6 +391,7 @@ export default function Game() {
     socket.on('error', ({ message }: { message: string }) => console.warn('Socket error:', message));
 
     return () => {
+      socket.off('connect', handleConnect);
       socket.off('gameStateUpdate');
       socket.off('diceRolled');
       socket.off('gameOver');

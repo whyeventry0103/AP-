@@ -4,7 +4,7 @@ import { Game } from '../models/Game';
 import { User } from '../models/User';
 import { ActiveGame } from '../models/ActiveGame';
 import {
-  GameState, Color, COLORS,
+  GameState, COLORS,
   initGameState, rollDice, getValidTokenIndices,
   applyMove, autoMove, getCoinReward
 } from './ludoEngine';
@@ -231,7 +231,11 @@ export function setupSocket(io: Server) {
       socket.join(gameId);
       joinedGameId = gameId;
       const player = state.players.find(p => p.userId === userId);
-      if (player) { player.isConnected = true; player.isAI = false; }
+      if (player) {
+        player.isConnected = true;
+        player.isAI = false;
+        await persistActiveGame(gameId, state);
+      }
       socket.emit('gameStateUpdate', { gameState: state });
       // Re-arm the turn timer if the game is active and no timer is running
       // (covers server-restart scenario where turnTimers map is empty)

@@ -15,7 +15,8 @@ export const listRooms = async (_req: AuthRequest, res: Response) => {
         roomId: r._id,
         players: r.players.map(p => ({ username: p.username, color: p.color })),
         total_players: r.players.length,
-        status: r.status
+        status: r.status,
+        createdAt: r.createdAt
       }))
     });
   } catch {
@@ -37,7 +38,13 @@ export const createRoom = async (req: AuthRequest, res: Response) => {
       }],
       status: 'waiting'
     });
-    res.status(201).json({ roomId: game._id });
+    res.status(201).json({
+      roomId: game._id,
+      status: game.status,
+      total_players: game.total_players,
+      players: game.players.map(p => ({ username: p.username, color: p.color })),
+      createdAt: game.createdAt
+    });
   } catch {
     res.status(500).json({ message: 'Server error' });
   }
@@ -51,7 +58,8 @@ export const getRoom = async (req: AuthRequest, res: Response) => {
       roomId: game._id,
       players: game.players.map(p => ({ userId: p.userId, username: p.username, color: p.color })),
       status: game.status,
-      total_players: game.players.length
+      total_players: game.players.length,
+      createdAt: game.createdAt
     });
   } catch {
     res.status(500).json({ message: 'Server error' });
