@@ -4,9 +4,21 @@ import { User } from '../models/User';
 
 export const updateProfile = async (req: AuthRequest, res: Response) => {
   try {
-    const { dob, currentPassword, newPassword } = req.body;
+    const { dob, currentPassword, newPassword, username } = req.body as {
+      dob?: string;
+      currentPassword?: string;
+      newPassword?: string;
+      username?: string;
+    };
     const user = await User.findById(req.user._id);
     if (!user) return res.status(404).json({ message: 'User not found' });
+
+    if (username && username.trim() && username.trim() !== user.username) {
+      const nextUsername = username.trim();
+      const existing = await User.findOne({ username: nextUsername });
+      if (existing) return res.status(409).json({ message: 'Username already taken' });
+      user.username = nextUsername;
+    }
 
     if (dob) user.dob = new Date(dob);
 

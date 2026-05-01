@@ -6,7 +6,16 @@ import { authApi } from '../utils/api';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface Token { id: number; steps: number; }
-interface Player { userId: string; username: string; color: Color; tokens: Token[]; rank: number | null; isConnected: boolean; isAI: boolean; }
+interface Player {
+  userId: string;
+  username: string;
+  color: Color;
+  tokens: Token[];
+  rank: number | null;
+  isConnected: boolean;
+  isAI: boolean;
+  stats: { captures: number; turns: number; sixes: number };
+}
 interface LogEntry { time: string; color: string; text: string; type: string; }
 interface GameState { gameId: string; players: Player[]; currentPlayerIndex: number; diceValue: number | null; diceRolled: boolean; status: string; consecutiveSixes: number; rankings: string[]; log: LogEntry[]; turnCount: number; }
 interface ChatMsg { username: string; color: string; message: string; time: string; userId: string; }
@@ -412,7 +421,7 @@ export default function Game() {
   };
 
   const handleLeave = () => {
-    socket.emit('leaveLobby');
+    socket.emit('leaveGame', { gameId });
     navigate('/home');
   };
 
@@ -593,6 +602,32 @@ export default function Game() {
                       </strong>
                     </div>
                   ))}
+              </div>
+            </div>
+          </div>
+
+          <div className="panel">
+            <div className="panel-hd">Scores &amp; Stats</div>
+            <div className="panel-bd">
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {gameState.players.map(p => (
+                  <div key={p.userId} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', border: '1px solid rgba(255,255,255,.08)', borderRadius: 10, background: 'rgba(0,0,0,.18)' }}>
+                    <div className={dotClass(p.color)} />
+                    <div style={{ flex: 1 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+                        <strong style={{ color: '#fff' }}>{p.userId === user?._id ? 'You' : p.username}</strong>
+                        {!p.isConnected && <span style={{ fontSize: 12, color: '#ffcc80', fontWeight: 700 }}>AI</span>}
+                      </div>
+                      <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginTop: 6, fontSize: 12, color: '#ddd' }}>
+                        <span><strong>{p.tokens.filter(t => t.steps === 57).length}</strong> finished</span>
+                        <span><strong>{p.tokens.filter(t => t.steps === 0).length}</strong> home</span>
+                        <span><strong>{p.stats?.captures ?? 0}</strong> captures</span>
+                        <span><strong>{p.stats?.turns ?? 0}</strong> turns</span>
+                        <span><strong>{p.stats?.sixes ?? 0}</strong> 6s</span>
+                      </div>
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
           </div>

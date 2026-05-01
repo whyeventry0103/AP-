@@ -8,6 +8,7 @@ import { profileApi } from '../utils/api';
 export default function UpdateProfile() {
   const { user, updateUser } = useAuth();
   const navigate = useNavigate();
+  const [username, setUsername] = useState(user?.username || '');
   const [dob, setDob] = useState(user?.dob ? user.dob.substring(0, 10) : '');
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -19,6 +20,7 @@ export default function UpdateProfile() {
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setError(''); setSuccess('');
+    if (!username.trim()) return setError('Username is required');
     if (newPassword || confirmNew || currentPassword) {
       if (!currentPassword) return setError('Current password required');
       if (newPassword.length < 6) return setError('New password must be at least 6 characters');
@@ -26,7 +28,7 @@ export default function UpdateProfile() {
     }
     setLoading(true);
     try {
-      const body: { dob: string; currentPassword?: string; newPassword?: string } = { dob };
+      const body: { dob: string; username: string; currentPassword?: string; newPassword?: string } = { dob, username: username.trim() };
       if (newPassword) { body.currentPassword = currentPassword; body.newPassword = newPassword; }
       const data = await profileApi.update(body);
       updateUser((data as { user: Parameters<typeof updateUser>[0] }).user);
@@ -53,8 +55,8 @@ export default function UpdateProfile() {
           <form onSubmit={handleSubmit}>
             <div className="form-group">
               <label className="form-label">Username</label>
-              <input type="text" className="form-input" value={user?.username || ''} disabled />
-              <span className="form-hint">Cannot be changed after account creation</span>
+              <input type="text" className="form-input" value={username} onChange={e => setUsername(e.target.value)} required minLength={2} maxLength={20} />
+              <span className="form-hint">Must be unique and 2-20 characters</span>
             </div>
             <div className="form-group">
               <label className="form-label">Date of Birth</label>

@@ -15,6 +15,11 @@ export interface Player {
   rank: number | null;
   isConnected: boolean;
   isAI: boolean;
+  stats: {
+    captures: number;
+    turns: number;
+    sixes: number;
+  };
 }
 
 export interface LogEntry {
@@ -84,6 +89,9 @@ export function applyMove(state: GameState, tokenIndex: number): GameState {
   const dice = newState.diceValue!;
   const oldSteps = token.steps;
 
+  player.stats.turns += 1;
+  if (dice === 6) player.stats.sixes += 1;
+
   // Move token
   token.steps = oldSteps === 0 ? 1 : oldSteps + dice;
 
@@ -91,6 +99,7 @@ export function applyMove(state: GameState, tokenIndex: number): GameState {
 
   // Check capture (only on main track 1-51)
   let capturedLog = '';
+  let madeCapture = false;
   if (token.steps >= 1 && token.steps <= 51) {
     const myAbs = getAbsSquare(token.steps, player.color);
     if (!isSafeSquare(myAbs)) {
@@ -101,6 +110,7 @@ export function applyMove(state: GameState, tokenIndex: number): GameState {
             const oppAbs = getAbsSquare(oppToken.steps, opponent.color);
             if (oppAbs === myAbs) {
               oppToken.steps = 0;
+              madeCapture = true;
               capturedLog = `${player.color.toUpperCase()} captured ${opponent.color.toUpperCase()} token!`;
               newState.log.push({ time: timestamp, color: player.color, text: capturedLog, type: 'capture' });
             }
@@ -109,6 +119,8 @@ export function applyMove(state: GameState, tokenIndex: number): GameState {
       }
     }
   }
+
+  if (madeCapture) player.stats.captures += 1;
 
   // Check finish
   if (token.steps === 57) {
@@ -193,12 +205,9 @@ export function autoMove(state: GameState): { newState: GameState; tokenIndex: n
     newState.log.push({ time: ts, color: player.color, text: `${player.color.toUpperCase()} has no valid moves`, type: 'system' });
     return { newState, tokenIndex: -1 };
   }
-  // Prefer capturing move, else prefer token closest to finish
-  let best = validIndices[0];
-  for (const idx of validIndices) {
-    if (player.tokens[idx].steps > player.tokens[best].steps) best = idx;
-  }
-  return { newState: applyMove(state, best), tokenIndex: best };
+  // Spec requires AI/timeout to be random among valid moves (no strategy).
+  const chosen = validIndices[Math.floor(Math.random() * validIndices.length)];
+  return { newState: applyMove(state, chosen), tokenIndex: chosen };
 }
 
 export function initGameState(gameId: string, players: { userId: string; username: string; color: Color }[]): GameState {
@@ -216,7 +225,8 @@ export function initGameState(gameId: string, players: { userId: string; usernam
       ],
       rank: null,
       isConnected: true,
-      isAI: false
+      isAI: false,
+      stats: { captures: 0, turns: 0, sixes: 0 }
     })),
     currentPlayerIndex: 0,
     diceValue: null,

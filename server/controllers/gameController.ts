@@ -41,14 +41,19 @@ export const getHistory = async (req: AuthRequest, res: Response) => {
 
     const history = games.map(game => {
       const myPlayer = game.players.find(p => p.userId.toString() === userId.toString());
+      const ordered = game.players
+        .slice()
+        .sort((a, b) => (a.rank ?? 99) - (b.rank ?? 99));
+
+      const finishingOrder = ordered.map(p => p.username);
+      while (finishingOrder.length < game.total_players) finishingOrder.push('-');
+
       return {
         gameId: game._id,
         date: game.finishedAt || game.createdAt,
         total_players: game.total_players,
-        players: game.players
-          .slice()
-          .sort((a, b) => (a.rank ?? 99) - (b.rank ?? 99))
-          .map(p => ({ username: p.username, color: p.color, rank: p.rank })),
+        players: ordered.map(p => ({ username: p.username, color: p.color, rank: p.rank })),
+        finishingOrder,
         myRank: myPlayer?.rank,
         coinsEarned: myPlayer?.coinsEarned ?? 0
       };
