@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { getSocket } from '../utils/socket';
+import Navbar from '../components/Navbar';
 
 interface LobbyPlayer { socketId: string; userId: string; username: string; }
 const COLOR_CLASSES = ['red', 'blue', 'green', 'yellow'] as const;
@@ -49,6 +50,7 @@ export default function Lobby() {
 
   return (
     <div className="page">
+      <Navbar />
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: 'calc(100vh - 100px)', padding: '40px 20px' }}>
         <div style={{ textAlign: 'center', marginBottom: 40 }}>
           <h1 style={{ fontSize: 52, fontWeight: 900, color: '#f9a825', marginBottom: 8, textShadow: '2px 2px 4px rgba(0,0,0,.2)' }}>🎲 LUDO</h1>

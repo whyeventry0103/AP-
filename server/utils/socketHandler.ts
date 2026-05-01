@@ -72,26 +72,45 @@ async function finishGame(io: Server, state: GameState) {
 function startTurnTimer(io: Server, gameId: string) {
   clearTurnTimer(gameId);
   const timer = setTimeout(async () => {
-    const state = activeGames.get(gameId);
-    if (!state || state.status !== 'playing') return;
+    try {
+      const state = activeGames.get(gameId);
+      if (!state || state.status !== 'playing') return;
 
-    // If current player is disconnected, AI should take over.
-    const currentPlayer = state.players[state.currentPlayerIndex];
-    if (!currentPlayer.isConnected) currentPlayer.isAI = true;
+      // If current player is disconnected, AI should take over.
+      const currentPlayer = state.players[state.currentPlayerIndex];
+      if (!currentPlayer.isConnected) currentPlayer.isAI = true;
 
-    if (!state.diceRolled) {
-      // Auto-roll
-      const diceVal = rollDice();
-      state.diceValue = diceVal;
-      state.diceRolled = true;
-      activeGames.set(gameId, state);
-      await persistActiveGame(gameId, state);
-      io.to(gameId).emit('diceRolled', { gameState: state });
-      // Then auto-move
-      setTimeout(async () => {
-        const s2 = activeGames.get(gameId);
-        if (!s2 || s2.status !== 'playing') return;
-        const result = autoMove(s2);
+      if (!state.diceRolled) {
+        // Auto-roll
+        const diceVal = rollDice();
+        state.diceValue = diceVal;
+        state.diceRolled = true;
+        activeGames.set(gameId, state);
+        await persistActiveGame(gameId, state);
+        io.to(gameId).emit('diceRolled', { gameState: state });
+        // Then auto-move after short delay
+        setTimeout(async () => {
+          try {
+            const s2 = activeGames.get(gameId);
+            if (!s2 || s2.status !== 'playing') return;
+            const result = autoMove(s2);
+            if (result) {
+              activeGames.set(gameId, result.newState);
+              await persistActiveGame(gameId, result.newState);
+              io.to(gameId).emit('gameStateUpdate', { gameState: result.newState });
+              if (result.newState.status === 'finished') {
+                await finishGame(io, result.newState);
+              } else {
+                startTurnTimer(io, gameId);
+              }
+            }
+          } catch (e) { console.error('auto-move inner timer error:', e); }
+        }, 1000);
+      } else {
+        // Dice already rolled but no move made — auto-move
+        const s = activeGames.get(gameId);
+        if (!s) return;
+        const result = autoMove(s);
         if (result) {
           activeGames.set(gameId, result.newState);
           await persistActiveGame(gameId, result.newState);
@@ -102,23 +121,8 @@ function startTurnTimer(io: Server, gameId: string) {
             startTurnTimer(io, gameId);
           }
         }
-      }, 1000);
-    } else {
-      // Dice already rolled but no move made — auto-move
-      const s = activeGames.get(gameId);
-      if (!s) return;
-      const result = autoMove(s);
-      if (result) {
-        activeGames.set(gameId, result.newState);
-        await persistActiveGame(gameId, result.newState);
-        io.to(gameId).emit('gameStateUpdate', { gameState: result.newState });
-        if (result.newState.status === 'finished') {
-          await finishGame(io, result.newState);
-        } else {
-          startTurnTimer(io, gameId);
-        }
       }
-    }
+    } catch (e) { console.error('startTurnTimer error:', e); }
   }, TURN_TIMEOUT_MS);
   turnTimers.set(gameId, timer);
 }
